@@ -111,14 +111,16 @@ class VAEXperiment(pl.LightningModule):
             if self.params['scheduler_gamma'] is not None:
                 scheduler = optim.lr_scheduler.ExponentialLR(optims[0],
                                                              gamma = self.params['scheduler_gamma'])
-                scheds.append(scheduler)
+                scheduler_config = {'scheduler': scheduler, 'interval': 'epoch' }
+                scheds.append(scheduler_config)
 
                 # Check if another scheduler is required for the second optimizer
                 try:
                     if self.params['scheduler_gamma_2'] is not None:
                         scheduler2 = optim.lr_scheduler.ExponentialLR(optims[1],
                                                                       gamma = self.params['scheduler_gamma_2'])
-                        scheds.append(scheduler2)
+                        scheduler_config2 = {'scheduler': scheduler2, 'interval': 'epoch' }
+                        scheds.append(scheduler_config2)
                 except:
                     pass
                 return optims, scheds

@@ -32,14 +32,17 @@ class VanillaVAE(BaseVAE):
             )
             in_channels = h_dim
 
+        # 1. [batch_size, 3, 64, 64]图片 -> [卷积，norm，relu] * N -> [batch_size, 512, 2, 2]
         self.encoder = nn.Sequential(*modules)
+
+        # 2. 两个fc，生成均值，方差隐变量。跟AE的区别就在这里
         self.fc_mu = nn.Linear(hidden_dims[-1]*4, latent_dim)
         self.fc_var = nn.Linear(hidden_dims[-1]*4, latent_dim)
-
 
         # Build Decoder
         modules = []
 
+        # 3. latent_dim -> [batch_size, 512 * 2 * 2]
         self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4)
 
         hidden_dims.reverse()
@@ -57,10 +60,10 @@ class VanillaVAE(BaseVAE):
                     nn.LeakyReLU())
             )
 
-
-
+        # 4. [batch_size, 512, 2, 2] -> [反卷积, norm, relu] * N -> [batch_size, 32, 32, 32]
         self.decoder = nn.Sequential(*modules)
 
+        # 5. 图片还原     -> [batch_size, 32, 64, 64] -> [batch_size, 3, 64, 64]
         self.final_layer = nn.Sequential(
                             nn.ConvTranspose2d(hidden_dims[-1],
                                                hidden_dims[-1],
@@ -118,6 +121,7 @@ class VanillaVAE(BaseVAE):
 
     def forward(self, input: Tensor, **kwargs) -> List[Tensor]:
         mu, log_var = self.encode(input)
+        # 1. 重要，基于mu/log_var，隐变量，进行采样。  这里是VAE和AE的区别
         z = self.reparameterize(mu, log_var)
         return  [self.decode(z), input, mu, log_var]
 
@@ -139,7 +143,7 @@ class VanillaVAE(BaseVAE):
         kld_weight = kwargs['M_N'] # Account for the minibatch samples from the dataset
         recons_loss =F.mse_loss(recons, input)
 
-
+        # 1. 两个正态分布，kl散度推导
         kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
 
         loss = recons_loss + kld_weight * kld_loss
